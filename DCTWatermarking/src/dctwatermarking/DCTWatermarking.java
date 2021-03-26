@@ -37,6 +37,11 @@ public class DCTWatermarking extends javax.swing.JFrame {
      * Creates new form DCTWatermarking
      */
     m = 8;
+    
+    
+    // ENCODING    
+    
+    
     public static double pi = 3.142857;
     public int [][][] blocks = new  int[10000][8][8];
     public int[][][] dctBlocks = new int[10000][8][8];
@@ -47,18 +52,19 @@ public class DCTWatermarking extends javax.swing.JFrame {
     public int difference;              // do sai lech
     public int t=2;                     // dieu kien do chenh lech d
     public int a=2*(2*t+1);
-    public String secret="";
+    public String secretString="011110111011001";      // your bit 010100001010
     
     // image values
     
     public int width;
     public int height;
         
-    public int dctWidthBlock;
-    public int dctHeightBlock;
+    public int dctWidthBlock=0;
+    public int dctHeightBlock=0;
     
     public DCTWatermarking() {
         initComponents();  
+       // getImageValue(155);
     }
     
     public ImageIcon resizePic(String picPath){
@@ -68,29 +74,47 @@ public class DCTWatermarking extends javax.swing.JFrame {
         return myPicture;
     }
     
+    public void resetValue(){
+        
+        // reset values
+        
+        for (int i=0;i<10000;i++){
+            for (int k=0;i<8;k++){
+                for (int l=0;l<8;l++){
+                    blocks[i][k][l]=0;
+                    dctBlocks[i][k][l]=0;
+                    inverseBlocks[i][k][l]=0;
+                }
+            }
+        }
+    }
+    
+    
     public void devideIntoBlocks(String path) throws IOException{
         File file= new File(path);
         BufferedImage img = ImageIO.read(file);
-        //width          = img.getWidth();
-        //height         = img.getHeight();
-        //dctWidth=width/8;
-        //dctHeight= height/8;
+        width          = img.getWidth();
+        height         = img.getHeight();
+        dctWidthBlock=width/8;
+        dctHeightBlock= height/8;
         
-        int dctWidth=9;
-        int dctHeight= 9;
+      //  int dctWidth=9;
+       // int dctHeight= 9;
         
         
         int block=0;
         int startX=0,startY=0;
         int y=0,x=0,i=0,j=0;
         
+        System.out.println(dctHeightBlock);
+        System.out.println(dctWidthBlock);
         
-        while (y<=dctHeight){
-            while (x<=dctWidth){
+        while (y<=dctHeightBlock*n){
+            while (x<=dctWidthBlock*n){
                 while (j<8){
                     while (i<8){
                         blocks[block][j][i]=new Color(img.getRGB(y+j,x+i), true).getBlue();
-                        System.out.println("block: "+block+" j: "+j+" i: "+i+" = "+blocks[block][j][i]+"| value y: "+(y+j)+" , value x: "+(x+i));
+                        //System.out.println("block: "+block+" j: "+j+" i: "+i+" = "+blocks[block][j][i]+"| value y: "+(y+j)+" , value x: "+(x+i));
                         i++;
                     }
                     i=0;
@@ -99,15 +123,15 @@ public class DCTWatermarking extends javax.swing.JFrame {
                 j=0;
                 // go to next block
                 block++;
-                if (x+8<=dctWidth-8) {
-                    System.out.println("Okay     x = "+(x+8));
-                    x=x+8; 
+                if (x+8<=dctWidthBlock*n-8) {
+                    x=x+8;
+                    //System.out.println("Okay     x = "+x);      
                     }    
                 else {
                     x=0;
                     y=y+8;
                 }
-                if (y+8>dctHeight){
+                if (y+8>dctHeightBlock*n){
                     // for debug
                     return;
                 }
@@ -156,9 +180,50 @@ public class DCTWatermarking extends javax.swing.JFrame {
         }
     }
     
-    public void getImageValue(int i){
+    public int getImageValue(int num,int y, int x,int tmp){
+        if (y>=n*dctWidthBlock) return tmp;
+        if (x>n*dctHeightBlock) return tmp;
         
         
+        int block=0;
+        int X=0,Y=0;
+        
+        int tempX=num/(dctWidthBlock*n);
+        int tempY=num%(dctHeightBlock*n);
+        
+        
+        if (tempY!=0){
+            tempX+=1;
+        }
+        if (tempY==0) tempY=dctWidthBlock*n;
+        
+        X=tempX;
+        
+        // xac dinh hang
+        while (tempX>8){
+            block+=dctWidthBlock;
+            tempX-=8;
+        }
+        
+        // xac dinh cot
+        while (tempY>8){
+            block+=1;
+            tempY-=8;
+        }
+        
+        Y=tempY;
+        
+        // neu da het secret, khong con blog de luu tru
+        if (block>=dctHeightBlock*dctWidthBlock) return tmp;
+       // System.out.println("x: "+x+", y: "+y);
+        //System.out.println("Block:"+block+" X: "+X+" Y:"+(Y-1));
+        
+        // kiem tra trong block hoac blocks
+        
+        if (block>=secretString.length()) return blocks[block][X][Y-1];
+       
+        
+        return inverseBlocks[block][X][Y-1];
     }
     
     
@@ -172,7 +237,7 @@ public class DCTWatermarking extends javax.swing.JFrame {
         // new image
         BufferedImage image = new BufferedImage(width, height, BufferedImage.TYPE_INT_RGB);
         
-        
+        int runVal=0;
         
         for (int y = 0; y < height; y++) {
            for (int x = 0; x < width; x++) {
@@ -183,34 +248,22 @@ public class DCTWatermarking extends javax.swing.JFrame {
               //Retrieving the R G B values
               int red = color.getRed();
               int green = color.getGreen();
-              int blue = 
+              
+              int tmp=color.getBlue();
+              int blue =  getImageValue(runVal,y,x,tmp);
              // System.out.println("Red: "+red+", Green: "+green+", Blue: "+blue+" \n");
              
-             
-             // set color for new image
-             
-             
+              Color color1 = new Color(red,green,blue);
+              int rgb = color1.getRGB();
+              image.setRGB(x, y, rgb);
+             // set color for new image 
            }
         }
         
         
-        // chỉnh sửa lại thuật toán tạo array: thêm cột cho những chỗ thiếu
-        // chỉnh lại cách lưu ảnh
-        
-        
-        
-        
-        for (int y = 0; y < height; y++) {
-            for (int x = 0; x < width; x++) {
-               int rgb = r[y][x];
-               rgb = (rgb << 8) + g[y][x]; 
-               rgb = (rgb << 8) + b[y][x];
-               image.setRGB(x, y, rgb);
-            }
-         }
 
-        File outputFile = new File("/output.bmp");
-        ImageIO.write(image, "bmp", outputFile);
+        File outputFile = new File("C:\\Users\\DELL\\Desktop\\output.jpg");
+        ImageIO.write(image, "jpg", outputFile);
         
         
         
@@ -256,7 +309,7 @@ public class DCTWatermarking extends javax.swing.JFrame {
                 dctBlocks[block][i][j] = (int) (ci * cj * sum);
             }
         }
-        
+       /* 
         System.out.println("B Blocks");
                         for (i = 0; i < m; i++) 
                         {
@@ -272,6 +325,7 @@ public class DCTWatermarking extends javax.swing.JFrame {
                 System.out.printf("%d\t", dctBlocks[block][i][j]);
             System.out.println();
         }
+        */
     }
     
     public void dctInverse(int block){
@@ -315,13 +369,13 @@ public class DCTWatermarking extends javax.swing.JFrame {
         }
         
         
-        System.out.println("Inverse Blocks");
+     /*   System.out.println("Inverse Blocks");
         for (i = 0; i < m; i++) 
         {
             for (j = 0; j < n; j++) 
                 System.out.printf("%d\t", inverseBlocks[block][i][j]);
             System.out.println();
-        }
+        }*/
         
     }
     
@@ -385,7 +439,7 @@ public class DCTWatermarking extends javax.swing.JFrame {
            
     }
     
-    public void dctForLoopSecret(String secretString){
+    public void dctForLoopSecret(){
         int index=0;
         int secLength=secretString.length();
         int secBit=0;
@@ -395,16 +449,18 @@ public class DCTWatermarking extends javax.swing.JFrame {
             secBit=Integer.valueOf(secretString.charAt(index));
             dctTransform(index);
             chooseCoefficient(index);
-            dctWatermarking(index,1);
+            dctWatermarking(index,secBit);
             index++;
         }
-        
-        
-        
-        
-        
-        
     }
+    
+    
+    
+    // DECODE 
+    
+    
+    
+    
     
 
     /**
@@ -508,25 +564,10 @@ public class DCTWatermarking extends javax.swing.JFrame {
             // display the image in the jlanel
             jLabelImage.setIcon(resizePic(path));
             try {
-                //createRGBState(path);
                 devideIntoBlocks(path);
-                dctTransform(0);
-                secret= jTextField1.getText();
-                String binaryString=convertString2Binary(secret);
-                
-                
-                
-                // test 
-                coorX=3; coorY=5; coorP=7; coorQ=7;
-                chooseCoefficient(0);
-                dctWatermarking(0,1);
-                System.out.println("DCT Blocks");
-                for (int i = 0; i < m; i++) 
-                {
-                    for (int j = 0; j < n; j++) 
-                        System.out.printf("%d\t", dctBlocks[0][i][j]);
-                    System.out.println();
-                }
+                dctForLoopSecret();
+                saveImageFile(path);
+                System.out.println("Done");
                 
                 
                 
