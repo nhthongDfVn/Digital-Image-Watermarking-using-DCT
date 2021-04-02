@@ -26,6 +26,95 @@ import javax.swing.filechooser.FileNameExtensionFilter;
  *
  * @author HoangThong
  */
+
+
+class Location {
+    // values color of image
+    public int xVal=0;
+    public int yVal=0;
+    public int red=0;
+    public int green=0;
+    public int blue=0;
+    
+    // dct values
+    public int dctVal=-999999; // set giá trị mặc định để kiểm tra xem sử dụng block nào
+    public int rDctVal=0;
+    
+    
+
+    public Location() {
+        red=0;
+        blue=0;
+        green=0;
+        xVal=0;
+        yVal=0;
+        dctVal=-999999;
+        rDctVal=0;        
+    }
+
+    public void setDctVal(int dctVal) {
+        this.dctVal = dctVal;
+    }
+
+    public void setrDctVal(int rDctVal) {
+        this.rDctVal = rDctVal;
+    }
+
+    public int getDctVal() {
+        return dctVal;
+    }
+
+    public int getrDctVal() {
+        return rDctVal;
+    }
+
+    public void setxVal(int xVal) {
+        this.xVal = xVal;
+    }
+
+    public void setyVal(int yVal) {
+        this.yVal = yVal;
+    }
+
+    public void setRed(int red) {
+        this.red = red;
+    }
+
+    public void setGreen(int green) {
+        this.green = green;
+    }
+
+    public int getxVal() {
+        return xVal;
+    }
+
+    public int getyVal() {
+        return yVal;
+    }
+
+    public int getRed() {
+        return red;
+    }
+
+    public int getGreen() {
+        return green;
+    }
+    
+    public int getBlue() {
+        return blue;
+    }
+    
+    public void setBlue(int blue) {
+        this.blue = blue;
+    }
+    
+    
+    
+    
+    
+}
+
+
 public class DCTWatermarking extends javax.swing.JFrame {
 
     /**
@@ -43,9 +132,11 @@ public class DCTWatermarking extends javax.swing.JFrame {
     
     
     public static double pi = 3.142857;
-    public int [][][] blocks = new  int[10000][8][8];
-    public int[][][] dctBlocks = new int[10000][8][8];
-    public int[][][] inverseBlocks = new int[10000][8][8];
+    public Location [][][] blocks = new  Location[10000][8][8];
+   // public int[][][] dctBlocks = new int[10000][8][8];
+   // public int[][][] inverseBlocks = new int[10000][8][8];
+    public Location[] location = new Location[100000];
+    public int locaLenght=1;
    
     // DCT alg parameter
     public int coorX,coorY,coorP,coorQ; // vi tri toa do cac diem giau anh
@@ -74,20 +165,7 @@ public class DCTWatermarking extends javax.swing.JFrame {
         return myPicture;
     }
     
-    public void resetValue(){
-        
-        // reset values
-        
-        for (int i=0;i<10000;i++){
-            for (int k=0;i<8;k++){
-                for (int l=0;l<8;l++){
-                    blocks[i][k][l]=0;
-                    dctBlocks[i][k][l]=0;
-                    inverseBlocks[i][k][l]=0;
-                }
-            }
-        }
-    }
+  
     
     
     public void devideIntoBlocks(String path) throws IOException{
@@ -113,9 +191,20 @@ public class DCTWatermarking extends javax.swing.JFrame {
             while (x<=dctWidthBlock*n){
                 while (j<8){
                     while (i<8){
-                        blocks[block][j][i]=new Color(img.getRGB(y+j,x+i), true).getBlue();
+                        blocks[block][j][i]= new Location();
+                        // set color of image
+                        blocks[block][j][i].setRed(new Color(img.getRGB(y+j,x+i), true).getRed());
+                        blocks[block][j][i].setGreen(new Color(img.getRGB(y+j,x+i), true).getGreen());
+                        blocks[block][j][i].setBlue(new Color(img.getRGB(y+j,x+i), true).getBlue());
+                        // set image coordinates
+                        blocks[block][j][i].setxVal(y+j);
+                        blocks[block][j][i].setyVal(x+i);
+                        
+                        
+                        
                         //System.out.println("block: "+block+" j: "+j+" i: "+i+" = "+blocks[block][j][i]+"| value y: "+(y+j)+" , value x: "+(x+i));
                         i++;
+                        locaLenght++;
                     }
                     i=0;
                     j++;
@@ -137,6 +226,7 @@ public class DCTWatermarking extends javax.swing.JFrame {
                 }
             }
         }
+        
         
         
         
@@ -187,15 +277,16 @@ public class DCTWatermarking extends javax.swing.JFrame {
         
         int block=0;
         int X=0,Y=0;
-        
+        /*
         int tempX=num/(dctWidthBlock*n);
+        int xnxx=num%(dctWidthBlock*n);
         int tempY=num%(dctHeightBlock*n);
         
         
-        if (tempY!=0){
+        if (xnxx!=0&&tempX!=0){
             tempX+=1;
         }
-        if (tempY==0) tempY=dctWidthBlock*n;
+        
         
         X=tempX;
         
@@ -204,14 +295,22 @@ public class DCTWatermarking extends javax.swing.JFrame {
             block+=dctWidthBlock;
             tempX-=8;
         }
-        
+        Y=tempY;
         // xac dinh cot
-        while (tempY>8){
+        while (tempY>=8){
             block+=1;
             tempY-=8;
         }
         
-        Y=tempY;
+        
+        
+        X=(X)%8;
+        Y=(Y-1)%8;
+        */
+    /*    block=location[num].getBlock();
+        X=location[num].getX();
+        Y=location[num].getY();
+       //System.out.println("Num: "+num+" Block:"+block+" X: "+X+" Y:"+(Y));
         
         // neu da het secret, khong con blog de luu tru
         if (block>=dctHeightBlock*dctWidthBlock) return tmp;
@@ -220,10 +319,11 @@ public class DCTWatermarking extends javax.swing.JFrame {
         
         // kiem tra trong block hoac blocks
         
-        if (block>=secretString.length()) return blocks[block][X][Y-1];
+        if (block>=secretString.length()) return blocks[block][X][Y];
        
         
-        return inverseBlocks[block][X][Y-1];
+        return inverseBlocks[block][X][Y];*/
+    return 0;
     }
     
     
@@ -237,7 +337,7 @@ public class DCTWatermarking extends javax.swing.JFrame {
         // new image
         BufferedImage image = new BufferedImage(width, height, BufferedImage.TYPE_INT_RGB);
         
-        int runVal=0;
+        int runVal=1;
         
         for (int y = 0; y < height; y++) {
            for (int x = 0; x < width; x++) {
@@ -250,9 +350,10 @@ public class DCTWatermarking extends javax.swing.JFrame {
               int green = color.getGreen();
               
               int tmp=color.getBlue();
-              int blue =  getImageValue(runVal,y,x,tmp);
+              int blue = getImageValue(runVal,y,x,tmp);
+           
              // System.out.println("Red: "+red+", Green: "+green+", Blue: "+blue+" \n");
-             
+             runVal++;
               Color color1 = new Color(red,green,blue);
               int rgb = color1.getRGB();
               image.setRGB(x, y, rgb);
@@ -300,13 +401,14 @@ public class DCTWatermarking extends javax.swing.JFrame {
                 {
                     for (l = 0; l < n; l++) 
                     {
-                        dct1 = blocks[block][k][l] * 
+                        dct1 = blocks[block][k][l].getBlue() * 
                                Math.cos((2 * k + 1) * i * pi / (2 * m)) * 
                                Math.cos((2 * l + 1) * j * pi / (2 * n));
                         sum = sum + dct1;
                     }
                 }
-                dctBlocks[block][i][j] = (int) (ci * cj * sum);
+                blocks[block][i][j].setDctVal((int) (ci * cj * sum));
+
             }
         }
        /* 
@@ -358,13 +460,14 @@ public class DCTWatermarking extends javax.swing.JFrame {
                         // sum will temporarily store the sum of 
                         // cosine signals
                         
-                        dct1 = ci * cj*dctBlocks[block][i][j] * 
+                        dct1 = ci * cj*  blocks[block][i][j].getDctVal()* 
                                Math.cos((2 * k + 1) * i * pi / (2 * m)) * 
                                Math.cos((2 * l + 1) * j * pi / (2 * n));
                         sum = sum + dct1;
                     }
                 }
-                inverseBlocks[block][k][l] = (int)(sum);
+                blocks[block][k][l].setrDctVal((int)(sum));
+                //inverseBlocks[block][k][l] = (int)(sum);
             }
         }
         
@@ -405,7 +508,7 @@ public class DCTWatermarking extends javax.swing.JFrame {
         // d= || b „(i,j) - b „(p,q) || mod a
         // tính do chenh lenh
         // a=2(2t+1)
-        difference=Math.abs(dctBlocks[block][coorX][coorY]-dctBlocks[block][coorP][coorQ])%a;
+        difference=Math.abs(blocks[block][coorX][coorY].getDctVal() -blocks[block][coorP][coorQ].getDctVal())%a;
     }
     
     public boolean isBigger(int num1, int num2){
@@ -420,20 +523,23 @@ public class DCTWatermarking extends javax.swing.JFrame {
         
         
         if ((difference<2*t+1) && (bitVal==1)){
-            if (isBigger(dctBlocks[block][coorX][coorY], dctBlocks[block][coorP][coorQ])){
-                dctBlocks[block][coorX][coorY]+= ((int)(0.75*a)-difference);
+            if (isBigger(blocks[block][coorX][coorY].getDctVal(), blocks[block][coorP][coorQ].getDctVal())){
+                blocks[block][coorX][coorY].setDctVal(blocks[block][coorX][coorY].getDctVal()+(int)(0.75*a)-difference); 
             }
             else{
-                dctBlocks[block][coorP][coorQ]-= (int)((0.25*a)+difference);
+                blocks[block][coorP][coorQ].setDctVal(blocks[block][coorP][coorQ].getDctVal()-(int)((0.25*a)+difference));
             }
         }  
         
         if ((difference>=2*t+1) && (bitVal==0)){
-            if (isBigger(dctBlocks[block][coorX][coorY], dctBlocks[block][coorP][coorQ])){
-                dctBlocks[block][coorX][coorY]-=(difference-(int)(0.75*a))  ;
+            if (isBigger(blocks[block][coorX][coorY].getDctVal(), blocks[block][coorP][coorQ].getDctVal())){
+                
+                blocks[block][coorX][coorY].setDctVal(blocks[block][coorX][coorY].getDctVal()- (difference-(int)(0.75*a)));
+                //dctBlocks[block][coorX][coorY]-=(difference-(int)(0.75*a))  ;
             }
             else{
-                dctBlocks[block][coorP][coorQ]+=(int)(0.25*a)-difference   ;
+                blocks[block][coorP][coorQ].setDctVal(blocks[block][coorP][coorQ].getDctVal() + (int)(0.25*a)-difference );
+                //dctBlocks[block][coorP][coorQ]+=(int)(0.25*a)-difference   ;
             }
         }
            
@@ -565,8 +671,32 @@ public class DCTWatermarking extends javax.swing.JFrame {
             jLabelImage.setIcon(resizePic(path));
             try {
                 devideIntoBlocks(path);
-                dctForLoopSecret();
-                saveImageFile(path);
+                //dctForLoopSecret();
+                //saveImageFile(path);
+                BufferedImage image = new BufferedImage(width, height, BufferedImage.TYPE_INT_RGB);
+                
+                for (int block=0;block<blocks.length;block++){
+                    System.out.println("Block: "+block);
+                    
+                    // check is blocks[block][k][l] is s instanceof Simple1
+                    if (!(blocks[block][0][0] instanceof Location)) break;
+                    
+                    for (int k=0;k<8;k++){
+                        for (int l=0;l<8;l++){
+                            // setup image val
+                            Color color1 = new Color(blocks[block][k][l].getRed(),blocks[block][k][l].getGreen(),blocks[block][k][l].getBlue());
+                            int rgb = color1.getRGB();
+                            image.setRGB(blocks[block][k][l].getxVal(),blocks[block][k][l].getyVal(), rgb);
+                            
+                            
+                        }
+                    }
+                }
+                
+
+                File outputFile = new File("C:\\Users\\DELL\\Desktop\\output.jpg");
+                ImageIO.write(image, "jpg", outputFile);
+                
                 System.out.println("Done");
                 
                 
