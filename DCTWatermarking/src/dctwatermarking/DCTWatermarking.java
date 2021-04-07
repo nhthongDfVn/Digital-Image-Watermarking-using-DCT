@@ -8,18 +8,15 @@ package dctwatermarking;
 import java.awt.Color;
 import java.awt.Image;
 import java.awt.image.BufferedImage;
+import java.io.ByteArrayOutputStream;
 import java.io.File;
-import java.io.FileInputStream;
-import java.io.FileNotFoundException;
 import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.file.Paths;
 import java.util.logging.Level;
 import java.util.logging.Logger;
-import javafx.stage.FileChooser;
 import javax.imageio.ImageIO;
 import javax.swing.ImageIcon;
 import javax.swing.JFileChooser;
+import javax.swing.JOptionPane;
 import javax.swing.filechooser.FileNameExtensionFilter;
 
 /**
@@ -106,12 +103,7 @@ class Location {
     
     public void setBlue(int blue) {
         this.blue = blue;
-    }
-    
-    
-    
-    
-    
+    }   
 }
 
 
@@ -132,10 +124,7 @@ public class DCTWatermarking extends javax.swing.JFrame {
     
     
     public static double pi = 3.142857;
-    public Location [][][] blocks = new  Location[10000][8][8];
-   // public int[][][] dctBlocks = new int[10000][8][8];
-   // public int[][][] inverseBlocks = new int[10000][8][8];
-    public Location[] location = new Location[100000];
+    public Location [][][] blocks = new  Location[100000][8][8];
     public int locaLenght=1;
    
     // DCT alg parameter
@@ -143,7 +132,9 @@ public class DCTWatermarking extends javax.swing.JFrame {
     public int difference;              // do sai lech
     public int t=2;                     // dieu kien do chenh lech d
     public int a=2*(2*t+1);
-    public String secretString="011110111011001";      // your bit 010100001010
+    public String secretString="";      // your bit 010100001010
+    public int fileLength=24;          // chen vao do dai cua file
+    
     
     // image values
     
@@ -153,14 +144,17 @@ public class DCTWatermarking extends javax.swing.JFrame {
     public int dctWidthBlock=0;
     public int dctHeightBlock=0;
     
+    // file srce
+    public String srcOriginalFile="";
+    public String srcEmbedFile="";
+    
     public DCTWatermarking() {
         initComponents();  
-       // getImageValue(155);
     }
     
     public ImageIcon resizePic(String picPath){
         ImageIcon myImg = new ImageIcon(picPath);
-        Image img= myImg.getImage().getScaledInstance(jLabelImage.getWidth(), jLabelImage.getHeight(),Image.SCALE_SMOOTH);
+        Image img= myImg.getImage().getScaledInstance(jLabelImage2.getWidth(), jLabelImage2.getHeight(),Image.SCALE_SMOOTH);
         ImageIcon myPicture= new ImageIcon(img);
         return myPicture;
     }
@@ -176,16 +170,11 @@ public class DCTWatermarking extends javax.swing.JFrame {
         dctWidthBlock=width/8;
         dctHeightBlock= height/8;
         
-      //  int dctWidth=9;
-       // int dctHeight= 9;
-        
         
         int block=0;
         int startX=0,startY=0;
         int y=0,x=0,i=0,j=0;
         
-        System.out.println(dctHeightBlock);
-        System.out.println(dctWidthBlock);
         
         while (y<=dctHeightBlock*n){
             while (x<=dctWidthBlock*n){
@@ -193,16 +182,12 @@ public class DCTWatermarking extends javax.swing.JFrame {
                     while (i<8){
                         blocks[block][j][i]= new Location();
                         // set color of image
-                        blocks[block][j][i].setRed(new Color(img.getRGB(y+j,x+i), true).getRed());
-                        blocks[block][j][i].setGreen(new Color(img.getRGB(y+j,x+i), true).getGreen());
-                        blocks[block][j][i].setBlue(new Color(img.getRGB(y+j,x+i), true).getBlue());
+                        blocks[block][j][i].setRed(new Color(img.getRGB(x+i,y+j), true).getRed());
+                        blocks[block][j][i].setGreen(new Color(img.getRGB(x+i,y+j), true).getGreen());
+                        blocks[block][j][i].setBlue(new Color(img.getRGB(x+i,y+j), true).getBlue());
                         // set image coordinates
                         blocks[block][j][i].setxVal(y+j);
                         blocks[block][j][i].setyVal(x+i);
-                        
-                        
-                        
-                        //System.out.println("block: "+block+" j: "+j+" i: "+i+" = "+blocks[block][j][i]+"| value y: "+(y+j)+" , value x: "+(x+i));
                         i++;
                         locaLenght++;
                     }
@@ -213,8 +198,7 @@ public class DCTWatermarking extends javax.swing.JFrame {
                 // go to next block
                 block++;
                 if (x+8<=dctWidthBlock*n-8) {
-                    x=x+8;
-                    //System.out.println("Okay     x = "+x);      
+                    x=x+8;    
                     }    
                 else {
                     x=0;
@@ -222,150 +206,99 @@ public class DCTWatermarking extends javax.swing.JFrame {
                 }
                 if (y+8>dctHeightBlock*n){
                     // for debug
+                    System.out.println("[INFO] Read file okay");
                     return;
                 }
             }
-        }
-        
-        
-        
-        
-        
-        
+        }   
     }
     
     
+    public int getImageValue(int block, int x, int y){
+        int tmp;
+        if (blocks[block][x][y].getDctVal()!=-999999){
+            tmp=((blocks[block][x][y].getrDctVal()>255) ? 255 : blocks[block][x][y].getrDctVal()); 
+            tmp=(tmp<0)?0:tmp;
+            return tmp;
+        }
+        else{
+            return blocks[block][x][y].getBlue();
+        }
+     
+    }
     
-    public void createRGBState(String path) throws IOException{
-        File file= new File(path);
+    public boolean  canWatermarking() throws IOException{
+        // Original Image
+        File file= new File(srcOriginalFile);
         BufferedImage img = ImageIO.read(file);
         width          = img.getWidth();
         height         = img.getHeight();
         
         dctWidthBlock=width/8;
         dctHeightBlock= height/8;
-        System.out.println(dctWidthBlock+" "+dctHeightBlock+" "+dctHeightBlock*dctWidthBlock);
         
+        int lenght1=dctHeightBlock*dctWidthBlock;
         
-        // for testing 
+        // Embed Image
+        int lenght2=convertFile2Binary(srcEmbedFile);
         
-        width=9;
-        height=9;
-        
-        
-        
-        
-        for (int y = 0; y < height; y++) {
-           for (int x = 0; x < width; x++) {
-              //Retrieving contents of a pixel
-              int pixel = img.getRGB(x,y);
-              //Creating a Color object from pixel value
-              Color color = new Color(pixel, true);
-              //Retrieving the R G B values
-              int red = color.getRed();
-              int green = color.getGreen();
-              int blue = color.getBlue();
-             // System.out.println("Red: "+red+", Green: "+green+", Blue: "+blue+" \n");
-           }
+        if (lenght1>=lenght2+fileLength){
+            return true;
+        }
+        else
+        {
+            return false;
         }
     }
     
-    public int getImageValue(int num,int y, int x,int tmp){
-        if (y>=n*dctWidthBlock) return tmp;
-        if (x>n*dctHeightBlock) return tmp;
-        
-        
-        int block=0;
-        int X=0,Y=0;
-        /*
-        int tempX=num/(dctWidthBlock*n);
-        int xnxx=num%(dctWidthBlock*n);
-        int tempY=num%(dctHeightBlock*n);
-        
-        
-        if (xnxx!=0&&tempX!=0){
-            tempX+=1;
-        }
-        
-        
-        X=tempX;
-        
-        // xac dinh hang
-        while (tempX>8){
-            block+=dctWidthBlock;
-            tempX-=8;
-        }
-        Y=tempY;
-        // xac dinh cot
-        while (tempY>=8){
-            block+=1;
-            tempY-=8;
-        }
-        
-        
-        
-        X=(X)%8;
-        Y=(Y-1)%8;
-        */
-    /*    block=location[num].getBlock();
-        X=location[num].getX();
-        Y=location[num].getY();
-       //System.out.println("Num: "+num+" Block:"+block+" X: "+X+" Y:"+(Y));
-        
-        // neu da het secret, khong con blog de luu tru
-        if (block>=dctHeightBlock*dctWidthBlock) return tmp;
-       // System.out.println("x: "+x+", y: "+y);
-        //System.out.println("Block:"+block+" X: "+X+" Y:"+(Y-1));
-        
-        // kiem tra trong block hoac blocks
-        
-        if (block>=secretString.length()) return blocks[block][X][Y];
-       
-        
-        return inverseBlocks[block][X][Y];*/
-    return 0;
-    }
     
-    
-    
-    public void saveImageFile(String path) throws IOException{
-        File file= new File(path);
+    public BufferedImage readRestData(BufferedImage image) throws IOException{
+        // chieu dung
+        File file= new File(srcOriginalFile);
         BufferedImage img = ImageIO.read(file);
-        int width          = img.getWidth();
-        int height         = img.getHeight();
         
-        // new image
-        BufferedImage image = new BufferedImage(width, height, BufferedImage.TYPE_INT_RGB);
-        
-        int runVal=1;
-        
-        for (int y = 0; y < height; y++) {
-           for (int x = 0; x < width; x++) {
-              //Retrieving contents of a pixel
-              int pixel = img.getRGB(x,y);
-              //Creating a Color object from pixel value
-              Color color = new Color(pixel, true);
-              //Retrieving the R G B values
-              int red = color.getRed();
-              int green = color.getGreen();
-              
-              int tmp=color.getBlue();
-              int blue = getImageValue(runVal,y,x,tmp);
-           
-             // System.out.println("Red: "+red+", Green: "+green+", Blue: "+blue+" \n");
-             runVal++;
-              Color color1 = new Color(red,green,blue);
-              int rgb = color1.getRGB();
-              image.setRGB(x, y, rgb);
-             // set color for new image 
-           }
+        for (int i=1;i<height;i++){
+            for (int j=dctWidthBlock*8;j<width;j++){
+               // System.out.println(j+" "+i);
+                 int pixel = img.getRGB(j,i);
+                 image.setRGB(j,i, pixel);   
+            }
         }
         
-        
-
-        File outputFile = new File("C:\\Users\\DELL\\Desktop\\output.jpg");
-        ImageIO.write(image, "jpg", outputFile);
-        
+        for (int i=dctHeightBlock*8;i<height;i++){
+            for (int j=1;j<width;j++){
+               // System.out.println(j+" "+i);
+                 int pixel = img.getRGB(j,i);
+                 image.setRGB(j,i, pixel);   
+            }
+        }
+        return image;
+    }
+    
+    public void saveImageFile() throws IOException{
+        int ll=0;
+      BufferedImage image = new BufferedImage(width, height, BufferedImage.TYPE_INT_RGB);
+                for (int block=0;block<blocks.length;block++){
+                    // check is blocks[block][k][l] is s instanceof Simple1
+                    if (!(blocks[block][0][0] instanceof Location)) break;
+                    
+                    for (int k=0;k<8;k++){
+                        for (int l=0;l<8;l++){
+                            // setup image val
+                            //ll=getImageValue(block,k,l);
+                            //System.out.println(ll);
+                            Color color1 = new Color(blocks[block][k][l].getRed(),blocks[block][k][l].getGreen(),getImageValue(block,k,l));
+                            int rgb = color1.getRGB();
+                            image.setRGB(blocks[block][k][l].getyVal(),blocks[block][k][l].getxVal(), rgb); 
+                        }
+                    }
+                }
+                
+                image=readRestData(image);
+                File outputFile = new File("C:\\Users\\DELL\\Desktop\\output1.jpg");
+                ImageIO.write(image, "jpg", outputFile);
+                
+                System.out.println("[INFO] Done");
         
         
         
@@ -411,23 +344,6 @@ public class DCTWatermarking extends javax.swing.JFrame {
 
             }
         }
-       /* 
-        System.out.println("B Blocks");
-                        for (i = 0; i < m; i++) 
-                        {
-                            for (j = 0; j < n; j++) 
-                                System.out.printf("%d\t", blocks[block][i][j]);
-                            System.out.println();
-                        }
-        
-        System.out.println("DCT Blocks");
-        for (i = 0; i < m; i++) 
-        {
-            for (j = 0; j < n; j++) 
-                System.out.printf("%d\t", dctBlocks[block][i][j]);
-            System.out.println();
-        }
-        */
     }
     
     public void dctInverse(int block){
@@ -467,24 +383,35 @@ public class DCTWatermarking extends javax.swing.JFrame {
                     }
                 }
                 blocks[block][k][l].setrDctVal((int)(sum));
+                //System.out.println(blocks[block][k][l].getBlue()+" "+blocks[block][k][l].getrDctVal());
                 //inverseBlocks[block][k][l] = (int)(sum);
             }
         }
-        
-        
-     /*   System.out.println("Inverse Blocks");
-        for (i = 0; i < m; i++) 
-        {
-            for (j = 0; j < n; j++) 
-                System.out.printf("%d\t", inverseBlocks[block][i][j]);
-            System.out.println();
-        }*/
-        
     }
     
     
-    public void convertFile2Binary(String filePath) throws IOException{
-         byte[] bytes = Files.readAllBytes(Paths.get(filePath));
+    public int convertFile2Binary(String filePath) throws IOException{
+        File file= new File(filePath);
+        BufferedImage image = ImageIO.read(file);
+        
+       // write it to byte array in-memory (jpg format)
+       ByteArrayOutputStream b = new ByteArrayOutputStream();
+       ImageIO.write(image, "png", b);
+
+       // do whatever with the array...
+       byte[] jpgByteArray = b.toByteArray();
+
+       // convert it to a String with 0s and 1s        
+       StringBuilder sb = new StringBuilder();
+       for (byte by : jpgByteArray)
+           sb.append(Integer.toBinaryString(by & 0xFF));
+
+       //System.out.println();
+       secretString=sb.toString();
+       //System.out.println(secretString.length());
+       return secretString.length();
+       
+         
     }
     
     public String convertString2Binary(String input){
@@ -524,10 +451,12 @@ public class DCTWatermarking extends javax.swing.JFrame {
         
         if ((difference<2*t+1) && (bitVal==1)){
             if (isBigger(blocks[block][coorX][coorY].getDctVal(), blocks[block][coorP][coorQ].getDctVal())){
-                blocks[block][coorX][coorY].setDctVal(blocks[block][coorX][coorY].getDctVal()+(int)(0.75*a)-difference); 
+                blocks[block][coorX][coorY].setDctVal(blocks[block][coorX][coorY].getDctVal()+(int)(0.75*a)-difference);
+                //System.out.println("TH1: old: "+blocks[block][coorX][coorY].getGreen()+" new: "+blocks[block][coorX][coorY].getDctVal());
             }
             else{
                 blocks[block][coorP][coorQ].setDctVal(blocks[block][coorP][coorQ].getDctVal()-(int)((0.25*a)+difference));
+               // System.out.println("TH2: old: "+blocks[block][coorP][coorQ].getGreen()+" new: "+blocks[block][coorP][coorQ].getDctVal());
             }
         }  
         
@@ -535,13 +464,17 @@ public class DCTWatermarking extends javax.swing.JFrame {
             if (isBigger(blocks[block][coorX][coorY].getDctVal(), blocks[block][coorP][coorQ].getDctVal())){
                 
                 blocks[block][coorX][coorY].setDctVal(blocks[block][coorX][coorY].getDctVal()- (difference-(int)(0.75*a)));
+                //System.out.println("TH3: old: "+blocks[block][coorX][coorY].getGreen()+" new: "+blocks[block][coorX][coorY].getDctVal());
                 //dctBlocks[block][coorX][coorY]-=(difference-(int)(0.75*a))  ;
             }
             else{
                 blocks[block][coorP][coorQ].setDctVal(blocks[block][coorP][coorQ].getDctVal() + (int)(0.25*a)-difference );
+               // System.out.println("TH4: old: "+blocks[block][coorP][coorQ].getGreen()+" new: "+blocks[block][coorP][coorQ].getDctVal());
                 //dctBlocks[block][coorP][coorQ]+=(int)(0.25*a)-difference   ;
             }
         }
+        
+       
            
     }
     
@@ -550,12 +483,24 @@ public class DCTWatermarking extends javax.swing.JFrame {
         int secLength=secretString.length();
         int secBit=0;
         
+        String tmp=Integer.toBinaryString(secLength);
+        for (int i=tmp.length();i<fileLength;i++){
+            tmp="0"+tmp;
+        }
+        
         // loop throught secret
+        
+        secretString=tmp +secretString; // thêm độ dài của file vào
+        secLength=secretString.length();
+        
+        
         while (index<secLength){
-            secBit=Integer.valueOf(secretString.charAt(index));
+            secBit=secretString.charAt(index)-48;
+           //System.out.println(secBit);
             dctTransform(index);
             chooseCoefficient(index);
             dctWatermarking(index,secBit);
+            dctInverse(index);
             index++;
         }
     }
@@ -580,14 +525,21 @@ public class DCTWatermarking extends javax.swing.JFrame {
 
         jLabel1 = new javax.swing.JLabel();
         jButton1 = new javax.swing.JButton();
-        jLabelImage = new javax.swing.JLabel();
+        jLabelImage2 = new javax.swing.JLabel();
         jLabel2 = new javax.swing.JLabel();
+        jButton2 = new javax.swing.JButton();
+        jLabelImage1 = new javax.swing.JLabel();
         jLabel3 = new javax.swing.JLabel();
-        jTextField1 = new javax.swing.JTextField();
+        jToggleButton_Embed = new javax.swing.JToggleButton();
+        jLabel5 = new javax.swing.JLabel();
+        jLabelImage = new javax.swing.JLabel();
+        jToggleButton_Extract1 = new javax.swing.JToggleButton();
+        jToggleButton_Extract2 = new javax.swing.JToggleButton();
+        jLabel6 = new javax.swing.JLabel();
 
         setDefaultCloseOperation(javax.swing.WindowConstants.EXIT_ON_CLOSE);
 
-        jLabel1.setText("Image");
+        jLabel1.setText("Original Image");
 
         jButton1.setText("Choose file");
         jButton1.addActionListener(new java.awt.event.ActionListener() {
@@ -596,10 +548,39 @@ public class DCTWatermarking extends javax.swing.JFrame {
             }
         });
 
+        jLabelImage2.setBorder(javax.swing.BorderFactory.createLineBorder(new java.awt.Color(0, 0, 0)));
+
         jLabel2.setFont(new java.awt.Font("Tahoma", 0, 24)); // NOI18N
         jLabel2.setText("Digital Image Watermarking using DCT");
 
-        jLabel3.setText("Text");
+        jButton2.setText("Choose file");
+        jButton2.addActionListener(new java.awt.event.ActionListener() {
+            public void actionPerformed(java.awt.event.ActionEvent evt) {
+                jButton2ActionPerformed(evt);
+            }
+        });
+
+        jLabelImage1.setBorder(javax.swing.BorderFactory.createLineBorder(new java.awt.Color(0, 0, 0)));
+
+        jLabel3.setFont(new java.awt.Font("Tahoma", 0, 36)); // NOI18N
+        jLabel3.setText("+");
+
+        jToggleButton_Embed.setText("Embed");
+        jToggleButton_Embed.addActionListener(new java.awt.event.ActionListener() {
+            public void actionPerformed(java.awt.event.ActionEvent evt) {
+                jToggleButton_EmbedActionPerformed(evt);
+            }
+        });
+
+        jLabel5.setText("Result");
+
+        jLabelImage.setBorder(javax.swing.BorderFactory.createLineBorder(new java.awt.Color(0, 0, 0)));
+
+        jToggleButton_Extract1.setText("Reset");
+
+        jToggleButton_Extract2.setText("Extract");
+
+        jLabel6.setText("Embed/Watermarked Image ");
 
         javax.swing.GroupLayout layout = new javax.swing.GroupLayout(getContentPane());
         getContentPane().setLayout(layout);
@@ -611,40 +592,67 @@ public class DCTWatermarking extends javax.swing.JFrame {
                         .addGap(121, 121, 121)
                         .addComponent(jLabel2))
                     .addGroup(layout.createSequentialGroup()
-                        .addGap(41, 41, 41)
+                        .addContainerGap()
                         .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.TRAILING)
-                            .addComponent(jLabel3, javax.swing.GroupLayout.PREFERRED_SIZE, 53, javax.swing.GroupLayout.PREFERRED_SIZE)
-                            .addComponent(jLabel1, javax.swing.GroupLayout.PREFERRED_SIZE, 53, javax.swing.GroupLayout.PREFERRED_SIZE))
-                        .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
                             .addGroup(layout.createSequentialGroup()
-                                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.UNRELATED)
-                                .addComponent(jLabelImage, javax.swing.GroupLayout.PREFERRED_SIZE, 272, javax.swing.GroupLayout.PREFERRED_SIZE))
+                                .addComponent(jLabel1, javax.swing.GroupLayout.PREFERRED_SIZE, 81, javax.swing.GroupLayout.PREFERRED_SIZE)
+                                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
+                                .addComponent(jButton1, javax.swing.GroupLayout.PREFERRED_SIZE, 105, javax.swing.GroupLayout.PREFERRED_SIZE)
+                                .addGap(8, 8, 8)
+                                .addComponent(jLabel6)
+                                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
+                                .addComponent(jButton2, javax.swing.GroupLayout.PREFERRED_SIZE, 105, javax.swing.GroupLayout.PREFERRED_SIZE))
                             .addGroup(layout.createSequentialGroup()
-                                .addGap(93, 93, 93)
-                                .addComponent(jButton1, javax.swing.GroupLayout.PREFERRED_SIZE, 105, javax.swing.GroupLayout.PREFERRED_SIZE))
-                            .addGroup(layout.createSequentialGroup()
-                                .addGap(27, 27, 27)
-                                .addComponent(jTextField1, javax.swing.GroupLayout.PREFERRED_SIZE, 236, javax.swing.GroupLayout.PREFERRED_SIZE)))))
-                .addContainerGap(280, Short.MAX_VALUE))
+                                .addComponent(jLabelImage1, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
+                                .addGap(42, 42, 42)
+                                .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+                                    .addComponent(jLabel5, javax.swing.GroupLayout.PREFERRED_SIZE, 84, javax.swing.GroupLayout.PREFERRED_SIZE)
+                                    .addGroup(layout.createSequentialGroup()
+                                        .addComponent(jLabel3)
+                                        .addGap(44, 44, 44)
+                                        .addComponent(jLabelImage, javax.swing.GroupLayout.PREFERRED_SIZE, 168, javax.swing.GroupLayout.PREFERRED_SIZE)))))
+                        .addGap(54, 54, 54)
+                        .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.TRAILING)
+                            .addComponent(jToggleButton_Embed, javax.swing.GroupLayout.PREFERRED_SIZE, 116, javax.swing.GroupLayout.PREFERRED_SIZE)
+                            .addComponent(jToggleButton_Extract1, javax.swing.GroupLayout.PREFERRED_SIZE, 116, javax.swing.GroupLayout.PREFERRED_SIZE)
+                            .addComponent(jToggleButton_Extract2, javax.swing.GroupLayout.PREFERRED_SIZE, 116, javax.swing.GroupLayout.PREFERRED_SIZE))))
+                .addContainerGap(23, Short.MAX_VALUE))
+            .addGroup(layout.createSequentialGroup()
+                .addGap(168, 168, 168)
+                .addComponent(jLabelImage2, javax.swing.GroupLayout.PREFERRED_SIZE, 168, javax.swing.GroupLayout.PREFERRED_SIZE)
+                .addContainerGap(javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE))
         );
         layout.setVerticalGroup(
             layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
             .addGroup(layout.createSequentialGroup()
+                .addComponent(jLabel2)
+                .addGap(29, 29, 29)
+                .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
+                    .addComponent(jButton1)
+                    .addComponent(jLabel1, javax.swing.GroupLayout.PREFERRED_SIZE, 22, javax.swing.GroupLayout.PREFERRED_SIZE)
+                    .addComponent(jButton2)
+                    .addComponent(jLabel6, javax.swing.GroupLayout.PREFERRED_SIZE, 22, javax.swing.GroupLayout.PREFERRED_SIZE))
                 .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
                     .addGroup(layout.createSequentialGroup()
-                        .addGap(47, 47, 47)
-                        .addComponent(jLabel3, javax.swing.GroupLayout.PREFERRED_SIZE, 22, javax.swing.GroupLayout.PREFERRED_SIZE)
-                        .addGap(128, 128, 128)
-                        .addComponent(jLabel1, javax.swing.GroupLayout.PREFERRED_SIZE, 22, javax.swing.GroupLayout.PREFERRED_SIZE))
+                        .addGap(22, 22, 22)
+                        .addComponent(jToggleButton_Extract1, javax.swing.GroupLayout.PREFERRED_SIZE, 37, javax.swing.GroupLayout.PREFERRED_SIZE)
+                        .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.UNRELATED)
+                        .addComponent(jToggleButton_Embed, javax.swing.GroupLayout.PREFERRED_SIZE, 37, javax.swing.GroupLayout.PREFERRED_SIZE)
+                        .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.UNRELATED)
+                        .addComponent(jToggleButton_Extract2, javax.swing.GroupLayout.PREFERRED_SIZE, 37, javax.swing.GroupLayout.PREFERRED_SIZE))
                     .addGroup(layout.createSequentialGroup()
-                        .addComponent(jLabel2)
-                        .addGap(18, 18, 18)
-                        .addComponent(jTextField1, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
-                        .addGap(65, 65, 65)
-                        .addComponent(jButton1)
-                        .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
-                        .addComponent(jLabelImage, javax.swing.GroupLayout.PREFERRED_SIZE, 254, javax.swing.GroupLayout.PREFERRED_SIZE)))
-                .addContainerGap(91, Short.MAX_VALUE))
+                        .addGap(27, 27, 27)
+                        .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+                            .addComponent(jLabelImage, javax.swing.GroupLayout.PREFERRED_SIZE, 148, javax.swing.GroupLayout.PREFERRED_SIZE)
+                            .addComponent(jLabelImage1, javax.swing.GroupLayout.PREFERRED_SIZE, 148, javax.swing.GroupLayout.PREFERRED_SIZE)))
+                    .addGroup(layout.createSequentialGroup()
+                        .addGap(70, 70, 70)
+                        .addComponent(jLabel3)))
+                .addGap(21, 21, 21)
+                .addComponent(jLabel5, javax.swing.GroupLayout.PREFERRED_SIZE, 22, javax.swing.GroupLayout.PREFERRED_SIZE)
+                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
+                .addComponent(jLabelImage2, javax.swing.GroupLayout.PREFERRED_SIZE, 148, javax.swing.GroupLayout.PREFERRED_SIZE)
+                .addContainerGap(26, Short.MAX_VALUE))
         );
 
         pack();
@@ -668,48 +676,72 @@ public class DCTWatermarking extends javax.swing.JFrame {
             String path= selectedFile.getAbsolutePath();
             
             // display the image in the jlanel
-            jLabelImage.setIcon(resizePic(path));
-            try {
-                devideIntoBlocks(path);
-                //dctForLoopSecret();
-                //saveImageFile(path);
-                BufferedImage image = new BufferedImage(width, height, BufferedImage.TYPE_INT_RGB);
-                
-                for (int block=0;block<blocks.length;block++){
-                    System.out.println("Block: "+block);
-                    
-                    // check is blocks[block][k][l] is s instanceof Simple1
-                    if (!(blocks[block][0][0] instanceof Location)) break;
-                    
-                    for (int k=0;k<8;k++){
-                        for (int l=0;l<8;l++){
-                            // setup image val
-                            Color color1 = new Color(blocks[block][k][l].getRed(),blocks[block][k][l].getGreen(),blocks[block][k][l].getBlue());
-                            int rgb = color1.getRGB();
-                            image.setRGB(blocks[block][k][l].getxVal(),blocks[block][k][l].getyVal(), rgb);
-                            
-                            
-                        }
-                    }
-                }
-                
-
-                File outputFile = new File("C:\\Users\\DELL\\Desktop\\output.jpg");
-                ImageIO.write(image, "jpg", outputFile);
-                
-                System.out.println("Done");
-                
-                
-                
-                
-            } catch (IOException ex) {
-                Logger.getLogger(DCTWatermarking.class.getName()).log(Level.SEVERE, null, ex);
-            }
+            jLabelImage1.setIcon(resizePic(path));
+            srcOriginalFile=path;
         }  
         else if (fileState==JFileChooser.ERROR_OPTION){
             System.err.println("Only image are allowed!!!");
         }
     }//GEN-LAST:event_jButton1ActionPerformed
+
+    private void jButton2ActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_jButton2ActionPerformed
+        // TODO add your handling code here:
+        // TODO add your handling code here:
+        JFileChooser filec= new JFileChooser();
+        filec.setCurrentDirectory(new File(System.getProperty("user.home")));
+        // check file extension
+        
+        FileNameExtensionFilter fileFilter= new FileNameExtensionFilter("*.Images","jpg","jpeg","png");
+        filec.addChoosableFileFilter(fileFilter);
+        
+        int fileState= filec.showSaveDialog(null);
+        
+        // if the user select a file
+        
+        if (fileState == JFileChooser.APPROVE_OPTION){
+            File selectedFile= filec.getSelectedFile();
+            String path= selectedFile.getAbsolutePath();
+            
+            // display the image in the jlanel
+            jLabelImage.setIcon(resizePic(path));
+            srcEmbedFile=path;
+
+        }  
+        else if (fileState==JFileChooser.ERROR_OPTION){
+            JOptionPane.showMessageDialog(this, "Only image are allowed");
+            System.err.println("[ERROR] Only image are allowed");
+        }
+        
+    }//GEN-LAST:event_jButton2ActionPerformed
+
+    private void jToggleButton_EmbedActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_jToggleButton_EmbedActionPerformed
+        // TODO add your handling code here:
+        
+        if (srcEmbedFile.length()<=0||srcOriginalFile.length()<=0){
+            JOptionPane.showMessageDialog(this, "Invalid image");
+            System.err.println("[ERROR] Invalid image");
+            return;
+        }
+        try {
+            if (canWatermarking()){
+                // can watermarking
+                 devideIntoBlocks(srcOriginalFile);
+                 dctForLoopSecret();
+                 saveImageFile();
+                //convertFile2Binary(path); 
+                
+                
+            }
+            else{
+                JOptionPane.showMessageDialog(this, "Size of the embedded image is too large");
+                System.err.println("[ERROR] Size of the embedded image is too large");
+            }
+        } catch (IOException ex) {
+            Logger.getLogger(DCTWatermarking.class.getName()).log(Level.SEVERE, null, ex);
+        }
+        
+
+    }//GEN-LAST:event_jToggleButton_EmbedActionPerformed
 
     /**
      * @param args the command line arguments
@@ -749,10 +781,17 @@ public class DCTWatermarking extends javax.swing.JFrame {
 
     // Variables declaration - do not modify//GEN-BEGIN:variables
     private javax.swing.JButton jButton1;
+    private javax.swing.JButton jButton2;
     private javax.swing.JLabel jLabel1;
     private javax.swing.JLabel jLabel2;
     private javax.swing.JLabel jLabel3;
+    private javax.swing.JLabel jLabel5;
+    private javax.swing.JLabel jLabel6;
     private javax.swing.JLabel jLabelImage;
-    private javax.swing.JTextField jTextField1;
+    private javax.swing.JLabel jLabelImage1;
+    private javax.swing.JLabel jLabelImage2;
+    private javax.swing.JToggleButton jToggleButton_Embed;
+    private javax.swing.JToggleButton jToggleButton_Extract1;
+    private javax.swing.JToggleButton jToggleButton_Extract2;
     // End of variables declaration//GEN-END:variables
 }
